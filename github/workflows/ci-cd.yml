@@ -1,0 +1,75 @@
+name: CI/CD Pipeline React + Django + MongoDB
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd="mongosh --eval 'db.adminCommand({ ping: 1 })'"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      # Checkout code
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # ====== DJANGO BACKEND ======
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Run Django tests
+        run: |
+          cd backend
+          python manage.py test
+
+      # ====== REACT FRONTEND ======
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Run React tests
+        run: |
+          cd frontend
+          npm test -- --watchAll=false
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test # Deploy only if tests pass
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Example deployment to Heroku (replace with your provider)
+      - name: Deploy to Heroku
+        uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: "my-react-django-app"
+          heroku_email: "your.email@example.com"
